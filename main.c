@@ -10,6 +10,7 @@
 #include "remindme.h"
 #include "clock.h"
 #include "pinfo.h"
+#include "ls.h"
 
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
@@ -26,7 +27,6 @@ int number_builtin(void);
 void checkBackgroundCompleted(void);
 
 
-int b_ls(char **args, char *home_directory);
 
 typedef struct {
     char proc_name[500];
@@ -298,8 +298,3 @@ void printPrompt(void) {
     printf("\033[1;32m<\033[0m \033[1;36m%s\033[0m\033[1;31m@\033[0m\033[01;33m%s\033[0m : \033[1;35m~%s\033[0m \033[1;32m>\033[0m  ", USERNAME, HOSTNAME, working_directory);
 }
 
-
-
-int b_ls(char **args, char *home_directory) {
-    return 1;
-}
