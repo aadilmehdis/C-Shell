@@ -7,6 +7,7 @@
 #include "cd.h"
 #include "pwd.h"
 #include "echo.h"
+#include "remindme.h"
 
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
@@ -27,9 +28,8 @@ void checkBackgroundCompleted(void);
 // int b_exit(char **args, char *home_directory);
 // int b_pwd(char **args, char *home_directory);
 // int b_echo(char **args, char *home_directory);
-int b_reminder(char **args, char *home_directory);
+// int b_remindme(char **args, char *home_directory);
 int b_ls(char **args, char *home_directory);
-int b_remindme(char **args, char *home_directory);
 int b_clock(char **args, char *home_directory);
 int b_pinfo(char **args, char *home_directory);
 
@@ -314,13 +314,10 @@ void printPrompt(void) {
 // int b_echo(char **args, char *home_directory) {
 //     return 1;
 // }
-int b_reminder(char **args, char *home_directory) {
-    return 1;
-}
+// int b_remindme(char **args, char *home_directory) {
+//     return 1;
+// }
 int b_ls(char **args, char *home_directory) {
-    return 1;
-}
-int b_remindme(char **args, char *home_directory) {
     return 1;
 }
 int b_clock(char **args, char *home_directory) {
