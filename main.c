@@ -8,6 +8,8 @@
 #include "pwd.h"
 #include "echo.h"
 #include "remindme.h"
+#include "clock.h"
+#include "pinfo.h"
 
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
@@ -24,14 +26,7 @@ int number_builtin(void);
 void checkBackgroundCompleted(void);
 
 
-// int b_cd(char **args, char *home_directory);
-// int b_exit(char **args, char *home_directory);
-// int b_pwd(char **args, char *home_directory);
-// int b_echo(char **args, char *home_directory);
-// int b_remindme(char **args, char *home_directory);
 int b_ls(char **args, char *home_directory);
-int b_clock(char **args, char *home_directory);
-int b_pinfo(char **args, char *home_directory);
 
 typedef struct {
     char proc_name[500];
@@ -47,6 +42,8 @@ char CURRENT_DIR[1024];
 char *USERNAME;
 char HOSTNAME[1024];
 pid_t GLOBAL_PID;
+volatile sig_atomic_t STOP;
+
 
 char *str_builtin[] = {
     "cd",
@@ -302,27 +299,7 @@ void printPrompt(void) {
 }
 
 
-// int b_cd(char **args) {
-//     return 1;
-// }
-// int b_exit(char **args) {
-//     return 1;
-// }
-// int b_pwd(char **args, char *home_directory) {
-//     return 1;
-// }
-// int b_echo(char **args, char *home_directory) {
-//     return 1;
-// }
-// int b_remindme(char **args, char *home_directory) {
-//     return 1;
-// }
+
 int b_ls(char **args, char *home_directory) {
-    return 1;
-}
-int b_clock(char **args, char *home_directory) {
-    return 1;
-}
-int b_pinfo(char **args, char *home_directory) {
     return 1;
 }
