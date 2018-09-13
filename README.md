@@ -12,29 +12,29 @@ The application implements a basic Shell which can perform basic Shell operation
 
 The Built-in commands of the shell include
 
-- ls [-l -a] [file]
+- `ls [-l -a] [file]`
     - The ls command to list all the files and directories in the specified directory.
     - Similarities with conventional ls and prints the contents in the alphabetically sorted      order.
 
-- cd [file]
+- `cd [file]`
     - The cd command changes directory to the directory specified in the given path.
 
-- echo [arguments]
+- `echo [arguments]`
     - Displays the arguments in the stdout.
 
-- exit
+- `exit`
     - Exit the shell.
 
-- pwd
+- `pwd`
     - Show present working directory.
 
-- pinfo [pid]
+- `pinfo [pid]`
     - Display the information related to a process.
 
-- clock
+- `clock`
     - Display the realtime on the terminal.
 
-- remindme [seconds] [text]
+- `remindme [seconds] [text]`
     - Command to remind the text to user after specified time.
 
 For all the other commands the shell will fork the current process and create child process and execute the command.
