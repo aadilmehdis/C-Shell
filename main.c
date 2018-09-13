@@ -11,6 +11,7 @@
 #include "clock.h"
 #include "pinfo.h"
 #include "ls.h"
+#include "redirection.h"
 
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
@@ -98,8 +99,18 @@ void shellLoop(void) {
         for(int i=0 ; i < count_commands && return_status ; ++i)
         {
             char ** innerargs = parseInput(args[i]);
-            return_status = executeCommand(innerargs);
+            int restore_stdin, restore_stdout;
+            restore_stdin = dup(0);
+            restore_stdout = dup(1);
+            char ** newargs = redirectInputOutput(innerargs);
+            // printf("returned after redirection\n");
+            return_status = executeCommand(newargs);
+            dup2(restore_stdin, 0);
+            close(restore_stdin);
+            dup2(restore_stdout, 1);
+            close(restore_stdout);
         }
+
         free(input_line);
         free(args);
     } while(return_status);
