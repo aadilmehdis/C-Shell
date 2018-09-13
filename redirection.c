@@ -59,6 +59,7 @@ void restoreOuput(int saved_stdout)
 char** redirectInputOutput(char **args)
 {
     int newargscnt = 0;
+    int encountered_redirection = 0;
     char **newargs = malloc(sizeof(char *) * 500);
     for(int i=0 ; args[i]!=NULL ; ++i)
     {
@@ -75,7 +76,7 @@ char** redirectInputOutput(char **args)
                 changeInputSource(args[i+1]);
                 // printf("checkpoint 2\n");
             }
-            break;
+            encountered_redirection = 1;
         }
         else if(strcmp(args[i],">")==0)
         {
@@ -88,7 +89,7 @@ char** redirectInputOutput(char **args)
             {
                 changeOutputSource(args[i+1]);
             }   
-            break;
+            encountered_redirection = 1;
         }
         else if(strcmp(args[i], ">>")==0)
         {
@@ -101,9 +102,9 @@ char** redirectInputOutput(char **args)
             {
                 changeOutputSourceAppend(args[i+1]);
             }
-            break;
+            encountered_redirection = 1;
         }
-        else
+        else if(!encountered_redirection)
         {
             newargs[newargscnt] = args[i];
             ++newargscnt;
