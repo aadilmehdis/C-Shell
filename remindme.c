@@ -1,5 +1,11 @@
 #include "remindme.h"
 
+/*
+ * Function : to_integer
+ * ---------------------
+ * Convert character string into 
+ * an integer.
+ */
 int to_integer(char str[])
 {
     int len = strlen(str);
@@ -13,6 +19,13 @@ int to_integer(char str[])
    return num;
 }
 
+/*
+ * Function : b_remindme
+ * ---------------------
+ * Takes the command arguments and home directory
+ * and reminds the user after a specified number 
+ * of seconds the text he types in the command.
+ */
 int b_remindme(char **args, char *home_directory)
 {
     int i=2;
