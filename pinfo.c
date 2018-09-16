@@ -7,7 +7,7 @@ int b_pinfo(char **args, char *home_directory)
     pid_t process_id = GLOBAL_PID;
     if(args[1] != NULL)
     {
-        process_id = to_integer_p(args[1]);
+        process_id = atoi(args[1]);
     }
     char status_path[500], exectuable_path[500];
     sprintf(status_path,"/proc/%d/status",process_id);
@@ -58,33 +58,33 @@ int check_file_exists(const char * filename){
     return 0;
 }
 
-void to_string(char *str, int num)
-{
-    int i, rem, len = 0, n;
-    n = num;
-    while (n != 0)
-    {
-        len++;
-        n /= 10;
-    }
-    for (i = 0; i < len; i++)
-    {
-        rem = num % 10;
-        num = num / 10;
-        str[len - (i + 1)] = rem + '0';
-    }
-    str[len] = '\0';
-}
+// void to_string(char *str, int num)
+// {
+//     int i, rem, len = 0, n;
+//     n = num;
+//     while (n != 0)
+//     {
+//         len++;
+//         n /= 10;
+//     }
+//     for (i = 0; i < len; i++)
+//     {
+//         rem = num % 10;
+//         num = num / 10;
+//         str[len - (i + 1)] = rem + '0';
+//     }
+//     str[len] = '\0';
+// }
 
-int to_integer_p(char str[])
-{
-    int len = strlen(str);
-    int i, num = 0;
+// int to_integer_p(char str[])
+// {
+//     int len = strlen(str);
+//     int i, num = 0;
  
-    for (i = 0; i < len; i++)
-    {
-        num = num + ((str[len - (i + 1)] - '0') * pow(10, i));
-    }
+//     for (i = 0; i < len; i++)
+//     {
+//         num = num + ((str[len - (i + 1)] - '0') * pow(10, i));
+//     }
  
-   return num;
-}
+//    return num;
+// }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -13,11 +14,14 @@
 #include "pinfo.h"
 #include "ls.h"
 #include "redirection.h"
+#include "jobs.h"
+#include "env.h"
 
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
 #define SEMICOLON_DELIMITERS ";"
 #define PIPE_DELIMETERS "|\n"
+
 
 void shellLoop(void);
 int executeCommand(char **args);
@@ -41,6 +45,7 @@ void handleCtrlZ(int sig_num);
 typedef struct {
     char proc_name[500];
     pid_t proc_id;
+    int state; //0 -> stop 1->running
 } process;
 
 
@@ -66,7 +71,15 @@ char *str_builtin[] = {
     "quit",
     "ls",
     "clock",
-    "pinfo"
+    "pinfo",
+    "jobs",
+    "fg",
+    "bg",
+    "overkill",
+    "kjobs",
+    "unsetenv",
+    "setenv",
+    "exit"
 };
 
 char *str_builtin_bg[] = {
@@ -80,7 +93,15 @@ int (*func_builtin[])(char **, char *) = {
       &b_exit, 
       &b_ls,
       &b_clock,
-      &b_pinfo
+      &b_pinfo,
+      &b_jobs,
+      &b_fg,
+      &b_bg,
+      &b_overkill,
+      &b_kjobs,
+      &b_unsetenv,
+      &b_setenv,
+      &b_exit
 };
 
 int (*func_builtin_bg[])(char **, char *) = {
@@ -100,7 +121,6 @@ int main(int argc, char **argv)
 
 void handleCtrlC(int sig_num)
 {
-    printf("moyhe\n");
     signal(SIGINT,handleCtrlC);
     STOP = 1;
     if(getpid()!=GLOBAL_PID)
@@ -114,33 +134,20 @@ void handleCtrlC(int sig_num)
 }
 void handleCtrlZ(int sig_num)
 {
-    printf("here\n");
-    
     if(getpid()!=GLOBAL_PID)
     {
         return;
     }
     if(CHILD_PID != -1)
     {
-        kill(CHILD_PID, SIGINT);
+        kill(CHILD_PID, SIGTSTP);
+        PROC_ARR[BG_PROC_COUNT].proc_id = CHILD_PID;
+        PROC_ARR[BG_PROC_COUNT].state = 0;
+        strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, CHILD_PROC_NAME);
+        ++BG_PROC_COUNT;
+        printf("[%d]+    Stopped        %s[%d]\n",BG_PROC_COUNT,CHILD_PROC_NAME,CHILD_PID);
     }
     signal(SIGTSTP,handleCtrlZ);
-    fflush(stdout);
-    // shellLoop();
-    // if(CHILD_PID != -1)
-    // {
-    //     // kill(CHILD_PID, SIGTSTP);
-    //     printf("%d\n",CHILD_PID);
-    //     PROC_ARR[BG_PROC_COUNT].proc_id = CHILD_PID;
-    //     printf("%d\n",CHILD_PID);
-    //     strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, CHILD_PROC_NAME);
-    //     printf("%d\n",CHILD_PID);
-    //     ++BG_PROC_COUNT;
-    //     printf("%d\n",CHILD_PID);
-    //     printf("[%d]+    Stopped        %s[%d]\n",BG_PROC_COUNT,CHILD_PROC_NAME,CHILD_PID);
-    // }
-    // signal(SIGTSTP,handleCtrlZ);
-    // printf("here 2\n");
 }
 
 
@@ -173,7 +180,6 @@ void shellLoop(void) {
             if(count_piped <= 1)
             {
                 char ** innerargs = parseInput(copy2);
-                printf("args[i] :  %s\n",copy2);
                 int restore_stdin, restore_stdout;
                 restore_stdin = dup(0);
                 restore_stdout = dup(1);
@@ -288,14 +294,15 @@ int launchProgram(char **args) {
     }
     else {
         if(background_check < 0) {
-            do{
+            // do{
                 wait_pid = waitpid(pid, &status, WUNTRACED);
-            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+            // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
         }
         else {
             printf("%d\n",pid);
             PROC_ARR[BG_PROC_COUNT].proc_id = pid;
             strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, args[0]);
+            PROC_ARR[BG_PROC_COUNT].state = 1;
             ++BG_PROC_COUNT;
         }
     }
@@ -645,3 +652,6 @@ static void pipeline(char ***cmd)
         }
 	}
 }
+
+
+
