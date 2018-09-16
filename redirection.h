@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TOKEN_BUFFER_SIZE_1 128
+#define OUT_DELIMITERS ">"
+#define IN_DELIMITERS "<"
+
 void changeInputSource(char *filename);
 void changeOutputSource(char *filename);
 void changeOutputSourceAppend(char *filename);

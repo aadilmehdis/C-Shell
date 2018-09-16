@@ -56,11 +56,15 @@ void restoreOuput(int saved_stdout)
 }
 
 
-char** redirectInputOutput(char **args)
+char **redirectInputOutput(char **args)
 {
     int newargscnt = 0;
     int encountered_redirection = 0;
     char **newargs = malloc(sizeof(char *) * 500);
+    for(int i=0;i<500;++i)
+    {
+        newargs[i] = NULL;
+    }
     for(int i=0 ; args[i]!=NULL ; ++i)
     {
         if(strcmp(args[i], "<")==0)
@@ -111,4 +115,65 @@ char** redirectInputOutput(char **args)
         }
     }
     return newargs;
+}
+
+
+char **parseInputOutRedirection(char *input_line) {
+    int buffer_size = TOKEN_BUFFER_SIZE_1;
+    int position = 0;
+    char **token_list = malloc(buffer_size * sizeof(char *));
+    char *token;
+
+    if(!token_list) {
+        fprintf(stderr, "Allocation Error");
+        exit(1); // EXIT_FAILURE
+    }
+
+    token = strtok(input_line, OUT_DELIMITERS);
+    while(token != NULL) {
+        token_list[position] = token;
+        position++;
+
+        if(position >= buffer_size) {
+            buffer_size += TOKEN_BUFFER_SIZE_1;
+            token_list = realloc(token_list, buffer_size * sizeof(char *));
+            if(!token_list) {
+                fprintf(stderr, "Allocation Error");
+                exit(1); // EXIT_FAILURE
+            }
+        }
+        token = strtok(NULL, OUT_DELIMITERS);
+    }
+    token_list[position] = NULL;
+    return token_list;
+}
+
+char **parseInputInRedirection(char *input_line) {
+    int buffer_size = TOKEN_BUFFER_SIZE_1;
+    int position = 0;
+    char **token_list = malloc(buffer_size * sizeof(char *));
+    char *token;
+
+    if(!token_list) {
+        fprintf(stderr, "Allocation Error");
+        exit(1); // EXIT_FAILURE
+    }
+
+    token = strtok(input_line, IN_DELIMITERS);
+    while(token != NULL) {
+        token_list[position] = token;
+        position++;
+
+        if(position >= buffer_size) {
+            buffer_size += TOKEN_BUFFER_SIZE_1;
+            token_list = realloc(token_list, buffer_size * sizeof(char *));
+            if(!token_list) {
+                fprintf(stderr, "Allocation Error");
+                exit(1); // EXIT_FAILURE
+            }
+        }
+        token = strtok(NULL, IN_DELIMITERS);
+    }
+    token_list[position] = NULL;
+    return token_list;
 }

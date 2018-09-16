@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "exit.h"
@@ -16,6 +17,7 @@
 #define TOKEN_BUFFER_SIZE 128
 #define TOKEN_DELIMITERS " \t\r\n\a"
 #define SEMICOLON_DELIMITERS ";"
+#define PIPE_DELIMETERS "|\n"
 
 void shellLoop(void);
 int executeCommand(char **args);
@@ -23,10 +25,17 @@ int launchProgram(char **args);
 char *readInput(void);
 char **parseInput(char *input_line);
 char **parseInputSemiColon(char *input_line);
+char **parseInputPipe(char *input_line);
 void printPrompt(void);
 int number_builtin(void);
 void checkBackgroundCompleted(void);
-
+void exec_type1(char **args, int i);
+void exec_type2(char **args, int i);
+void exec_type3(char **args, int i);
+int executePipeCommand(char ***piped_commands_split, int demarker);
+static void pipeline(char ***cmd);
+void handleCtrlC(int sig_num);
+void handleCtrlZ(int sig_num);
 
 
 typedef struct {
@@ -42,7 +51,11 @@ char HOME_DIR[1024];
 char CURRENT_DIR[1024];
 char *USERNAME;
 char HOSTNAME[1024];
+char CHILD_PROC_NAME[1024];
 pid_t GLOBAL_PID;
+pid_t CHILD_PID = -1;
+pid_t pipedpid;
+int pipes[1000][2];
 volatile sig_atomic_t STOP;
 
 
@@ -50,7 +63,7 @@ char *str_builtin[] = {
     "cd",
     "pwd",
     "echo",
-    "exit",
+    "quit",
     "ls",
     "clock",
     "pinfo"
@@ -66,7 +79,7 @@ int (*func_builtin[])(char **, char *) = {
       &b_echo, 
       &b_exit, 
       &b_ls,
-      &b_clock, 
+      &b_clock,
       &b_pinfo
 };
 
@@ -78,37 +91,125 @@ int (*func_builtin_bg[])(char **, char *) = {
 int main(int argc, char **argv)
 {
     getcwd(HOME_DIR,1024);
+    signal(SIGTSTP,handleCtrlZ);
+    signal(SIGINT,handleCtrlC);
     GLOBAL_PID = getpid();
     shellLoop();
     return 0;
+}
+
+void handleCtrlC(int sig_num)
+{
+    printf("moyhe\n");
+    signal(SIGINT,handleCtrlC);
+    STOP = 1;
+    if(getpid()!=GLOBAL_PID)
+    {
+        return;
+    }
+    if(CHILD_PID != -1)
+    {
+        kill(CHILD_PID, SIGINT);
+    }    
+}
+void handleCtrlZ(int sig_num)
+{
+    printf("here\n");
+    
+    if(getpid()!=GLOBAL_PID)
+    {
+        return;
+    }
+    if(CHILD_PID != -1)
+    {
+        kill(CHILD_PID, SIGINT);
+    }
+    signal(SIGTSTP,handleCtrlZ);
+    fflush(stdout);
+    // shellLoop();
+    // if(CHILD_PID != -1)
+    // {
+    //     // kill(CHILD_PID, SIGTSTP);
+    //     printf("%d\n",CHILD_PID);
+    //     PROC_ARR[BG_PROC_COUNT].proc_id = CHILD_PID;
+    //     printf("%d\n",CHILD_PID);
+    //     strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, CHILD_PROC_NAME);
+    //     printf("%d\n",CHILD_PID);
+    //     ++BG_PROC_COUNT;
+    //     printf("%d\n",CHILD_PID);
+    //     printf("[%d]+    Stopped        %s[%d]\n",BG_PROC_COUNT,CHILD_PROC_NAME,CHILD_PID);
+    // }
+    // signal(SIGTSTP,handleCtrlZ);
+    // printf("here 2\n");
 }
 
 
 void shellLoop(void) {
     char *input_line;
     char **args;
+    char copy[5000];
     int return_status = 1;
 
+    
     do {
         printPrompt();
         checkBackgroundCompleted();
         input_line = readInput();
+        strcpy(copy, input_line);
+        CHILD_PID = -1;
         args = parseInputSemiColon(input_line);
         int count_commands = 0;
         while(args[count_commands] != NULL) ++count_commands; // count the number of semicolon seperated commmands given in a single line
         for(int i=0 ; i < count_commands && return_status ; ++i)
         {
-            char ** innerargs = parseInput(args[i]);
-            int restore_stdin, restore_stdout;
-            restore_stdin = dup(0);
-            restore_stdout = dup(1);
-            char ** newargs = redirectInputOutput(innerargs);
-            // printf("returned after redirection\n");
-            return_status = executeCommand(newargs);
-            dup2(restore_stdin, 0);
-            close(restore_stdin);
-            dup2(restore_stdout, 1);
-            close(restore_stdout);
+            char copy2[5000];
+            strcpy(copy2, args[i]);
+            char **piped_commands = parseInputPipe(args[i]);
+            int count_piped = 0;
+            for(int k=0;piped_commands[k]!=NULL;++k) 
+            {
+                count_piped++;
+            }
+            if(count_piped <= 1)
+            {
+                char ** innerargs = parseInput(copy2);
+                printf("args[i] :  %s\n",copy2);
+                int restore_stdin, restore_stdout;
+                restore_stdin = dup(0);
+                restore_stdout = dup(1);
+                char ** newargs = redirectInputOutput(innerargs);
+                return_status = executeCommand(newargs);
+                // return_status = executeCommand(innerargs);
+                dup2(restore_stdin, 0);
+                close(restore_stdin);
+                dup2(restore_stdout, 1);
+                close(restore_stdout);
+                free(newargs);
+                free(innerargs);
+            }
+            else
+            {
+                int restore_stdin, restore_stdout;
+                restore_stdin = dup(0);
+                restore_stdout = dup(1);
+                char **piped_commands = parseInputPipe(copy);
+                int demarker = 0;
+                char ***piped_commands_split = malloc(sizeof(char **) * 1000);
+                for(int i=0 ;piped_commands[i]!=NULL;++i)
+                {
+                    piped_commands_split[demarker] = parseInput(piped_commands[i]);
+                    piped_commands_split[demarker] = redirectInputOutput(piped_commands_split[demarker]);
+                    demarker++;
+                }	            
+                pipeline(piped_commands_split);
+                dup2(restore_stdin, 0);
+                close(restore_stdin);
+                dup2(restore_stdout, 1);
+                close(restore_stdout);
+                return_status = 1;
+                free(piped_commands_split);
+            }
+            free(piped_commands);
         }
 
         free(input_line);
@@ -169,7 +270,8 @@ int launchProgram(char **args) {
     }
 
     pid = fork();
-
+    CHILD_PID = pid;
+    strcpy(CHILD_PROC_NAME, args[0]);
     if(pid == 0) {
         for(int i=0 ; i < number_builtin_bg() ; ++i) {
             if(strcmp(args[0], str_builtin_bg[i])==0) {
@@ -309,3 +411,237 @@ void printPrompt(void) {
     printf("\033[1;32m<\033[0m \033[1;36m%s\033[0m\033[1;31m@\033[0m\033[01;33m%s\033[0m : \033[1;35m~%s\033[0m \033[1;32m>\033[0m  ", USERNAME, HOSTNAME, working_directory);
 }
 
+char **parseInputPipe(char *input_line) {
+    int buffer_size = TOKEN_BUFFER_SIZE;
+    int position = 0;
+    char **token_list = malloc(buffer_size * sizeof(char *));
+    char *token;
+
+    if(!token_list) {
+        fprintf(stderr, "Allocation Error");
+        exit(1); // EXIT_FAILURE
+    }
+
+    token = strtok(input_line, PIPE_DELIMETERS);
+    while(token != NULL) {
+        token_list[position] = token;
+        position++;
+
+        if(position >= buffer_size) {
+            buffer_size += TOKEN_BUFFER_SIZE;
+            token_list = realloc(token_list, buffer_size * sizeof(char *));
+            if(!token_list) {
+                fprintf(stderr, "Allocation Error");
+                exit(1); // EXIT_FAILURE
+            }
+        }
+        token = strtok(NULL, PIPE_DELIMETERS);
+    }
+    token_list[position] = NULL;
+    return token_list;
+}
+
+// void exec_type1(char **args, int i)
+// {
+//     dup2(pipes[i][1],1);
+//     close(pipes[i][0]); close(pipes[i][1]);
+//     if(strcmp(args[0],"ls")==0)
+//     {
+//         b_ls(args,HOME_DIR);
+//     }
+//     else if(strcmp(args[0],"echo")==0)
+//     {
+//         b_echo(args,HOME_DIR);
+//     }
+//     else
+//     {
+//         execvp(args[0],args);
+//         exit(-1);
+//     }
+// }
+
+// void exec_type2(char **args, int i)
+// {
+//     dup2(pipes[i-1][0],0);
+//     dup2(pipes[i][1],1 );
+//     close(pipes[i-1][0]);close(pipes[i-1][1]);
+//     close(pipes[i][0]);close(pipes[i][1]);
+//     if(strcmp(args[0],"ls")==0)
+//     {
+//         b_ls(args,HOME_DIR);
+//     }
+//     else if(strcmp(args[0],"echo")==0)
+//     {
+//         b_echo(args,HOME_DIR);
+//     }
+//     else
+//     {
+//         execvp(args[0],args);
+//         exit(-1);
+//     }
+// }
+
+// void exec_type3(char **args, int i)
+// {
+//     dup2(pipes[i][0],0);
+//     close(pipes[i][0]);close(pipes[i][1]);
+//     if(strcmp(args[0],"ls")==0)
+//     {
+//         b_ls(args,HOME_DIR);
+//     }
+//     else if(strcmp(args[0],"echo")==0)
+//     {
+//         b_echo(args,HOME_DIR);
+//     }
+//     else
+//     {
+//         execvp(args[0],args);
+//         exit(-1);
+//     }
+// }
+
+// int executePipeCommand(char ***piped_commands_split, int demarker)
+// {
+//     if(pipe(pipes[0]) == -1)
+//     {
+//         printf("Bad Pipe %d", 0);
+//         exit(1);
+//     }
+
+
+//     if((pipedpid = fork()) == -1)
+//     {
+//         printf("Bad Fork\n");
+//         exit(1);
+//     }
+//     else if(pipedpid == 0)
+//     {
+//         exec_type1(piped_commands_split[0],0);
+//         return 1;
+//     }
+//     else
+//     {
+//         wait(NULL);
+//     }
+
+//     for(int i=1;i<demarker-1;++i)
+//     {
+//         if(pipe(pipes[i]) == -1)
+//         {
+//             printf("Bad Pipe %d", 1);
+//             exit(1);
+//         }
+//         if((pipedpid = fork()) == -1)
+//         {
+//             printf("Bad Fork\n");
+//             exit(1);
+//         }
+//         else if(pipedpid == 0)
+//         {
+//             exec_type2(piped_commands_split[i],i);
+//             return 1;
+//         }
+//         else
+//         {
+//             wait(NULL);
+//             close(pipes[i-1][0]);close(pipes[i-1][1]);
+//         }
+        
+//     }
+
+//     if((pipedpid = fork()) == -1)
+//     {
+//         printf("Bad Fork\n");
+//         exit(1);
+//     }
+//     else if(pipedpid == 0)
+//     {
+//         exec_type3(piped_commands_split[demarker-1],demarker-2);
+//         return 1;
+//     }
+//     for(int i=0;i<demarker-1;++i)
+//     {
+//         close(pipes[i][0]);
+//         close(pipes[i][1]);
+//     }
+//     wait(NULL);
+//     return 1;
+// }
+
+// static void pipeline(char ***cmd)
+// {
+// 	int fd[2];
+// 	pid_t pid;
+// 	int fdd = 0;				/* Backup */
+
+// 	while (*cmd != NULL) {
+// 		pipe(fd);				/* Sharing bidiflow */ 
+//         if ((pid = fork()) == -1) {
+//             perror("fork");
+//             exit(1);
+//         }
+//         else if (pid == 0) {
+//             dup2(fdd, 0);
+//             if (*(cmd + 1) != NULL) {
+//                 dup2(fd[1], 1);
+//             }
+//             close(fd[0]);  
+//             // for (int i = 0 ; i < number_builtin() ; ++i) {
+//             //     if(strcmp((*cmd)[0], str_builtin[i]) == 0) {
+//             //         (*func_builtin[i])(*cmd, HOME_DIR);
+//             //         return;
+//             //     }
+//             // }
+//             if(strcmp("echo",(*cmd)[0])==0)
+//             {
+//                 // b_echo((*cmd),HOME_DIR);
+//                 printf("hello kadjfhgh lakjfhk");
+//                 return;
+//             }
+//             else
+//             {
+//                 execvp((*cmd)[0], *cmd);
+//                 exit(1);
+//             }
+
+//         }
+//         else {
+//             wait(NULL); 		/* Collect childs */
+//             close(fd[1]);
+//             fdd = fd[0];
+//             cmd++;
+//         }
+// 	}
+// }
+
+static void pipeline(char ***cmd)
+{
+	int fd[2];
+	pid_t pid;
+	int fdd = 0;				/* Backup */
+
+	while (*cmd != NULL) {
+		pipe(fd);	
+			/* Sharing bidiflow */ 
+        if ((pid = fork()) == -1) {
+            perror("fork");
+            exit(1);
+        }
+        else if (pid == 0) {
+            dup2(fdd, 0);
+            if (*(cmd + 1) != NULL) {
+                dup2(fd[1], 1);
+            }
+            close(fd[0]);  
+            execvp((*cmd)[0], *cmd);
+            exit(1);
+
+        }
+        else {
+            wait(NULL); 		/* Collect childs */
+            close(fd[1]);
+            fdd = fd[0];
+            cmd++;
+        }
+	}
+}

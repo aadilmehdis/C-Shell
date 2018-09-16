@@ -16,15 +16,16 @@ int to_integer_c(char str[])
    return num;
 }
 
-void inthand(int signum)
-{
-    STOP = 1;
-}
+// void inthand(int signum)
+// {
+//     signal(SIGINT, inthand);
+//     STOP = 1;
+// }
 
 int b_clock(char **args, char *home_directory)
 {
     STOP = 0;
-    signal(SIGINT, inthand);
+    // signal(SIGINT, inthand);
     int interval = 1;
     if(args[1] != NULL)
         interval = to_integer_c(args[1]);
