@@ -21,6 +21,8 @@
 #define TOKEN_DELIMITERS " \t\r\n\a"
 #define SEMICOLON_DELIMITERS ";"
 #define PIPE_DELIMETERS "|\n"
+#define READ_END 0
+#define WRITE_END 1
 
 
 void shellLoop(void);
@@ -36,8 +38,7 @@ void checkBackgroundCompleted(void);
 void exec_type1(char **args, int i);
 void exec_type2(char **args, int i);
 void exec_type3(char **args, int i);
-int executePipeCommand(char ***piped_commands_split, int demarker);
-static void pipeline(char ***cmd);
+void pipedExecute(char ***command_list, int demarker);
 void handleCtrlC(int sig_num);
 void handleCtrlZ(int sig_num);
 
@@ -207,7 +208,7 @@ void shellLoop(void) {
                     piped_commands_split[demarker] = redirectInputOutput(piped_commands_split[demarker]);
                     demarker++;
                 }	            
-                pipeline(piped_commands_split);
+                pipedExecute(piped_commands_split, demarker);
                 dup2(restore_stdin, 0);
                 close(restore_stdin);
                 dup2(restore_stdout, 1);
@@ -448,209 +449,49 @@ char **parseInputPipe(char *input_line) {
     return token_list;
 }
 
-// void exec_type1(char **args, int i)
-// {
-//     dup2(pipes[i][1],1);
-//     close(pipes[i][0]); close(pipes[i][1]);
-//     if(strcmp(args[0],"ls")==0)
-//     {
-//         b_ls(args,HOME_DIR);
-//     }
-//     else if(strcmp(args[0],"echo")==0)
-//     {
-//         b_echo(args,HOME_DIR);
-//     }
-//     else
-//     {
-//         execvp(args[0],args);
-//         exit(-1);
-//     }
-// }
-
-// void exec_type2(char **args, int i)
-// {
-//     dup2(pipes[i-1][0],0);
-//     dup2(pipes[i][1],1 );
-//     close(pipes[i-1][0]);close(pipes[i-1][1]);
-//     close(pipes[i][0]);close(pipes[i][1]);
-//     if(strcmp(args[0],"ls")==0)
-//     {
-//         b_ls(args,HOME_DIR);
-//     }
-//     else if(strcmp(args[0],"echo")==0)
-//     {
-//         b_echo(args,HOME_DIR);
-//     }
-//     else
-//     {
-//         execvp(args[0],args);
-//         exit(-1);
-//     }
-// }
-
-// void exec_type3(char **args, int i)
-// {
-//     dup2(pipes[i][0],0);
-//     close(pipes[i][0]);close(pipes[i][1]);
-//     if(strcmp(args[0],"ls")==0)
-//     {
-//         b_ls(args,HOME_DIR);
-//     }
-//     else if(strcmp(args[0],"echo")==0)
-//     {
-//         b_echo(args,HOME_DIR);
-//     }
-//     else
-//     {
-//         execvp(args[0],args);
-//         exit(-1);
-//     }
-// }
-
-// int executePipeCommand(char ***piped_commands_split, int demarker)
-// {
-//     if(pipe(pipes[0]) == -1)
-//     {
-//         printf("Bad Pipe %d", 0);
-//         exit(1);
-//     }
-
-
-//     if((pipedpid = fork()) == -1)
-//     {
-//         printf("Bad Fork\n");
-//         exit(1);
-//     }
-//     else if(pipedpid == 0)
-//     {
-//         exec_type1(piped_commands_split[0],0);
-//         return 1;
-//     }
-//     else
-//     {
-//         wait(NULL);
-//     }
-
-//     for(int i=1;i<demarker-1;++i)
-//     {
-//         if(pipe(pipes[i]) == -1)
-//         {
-//             printf("Bad Pipe %d", 1);
-//             exit(1);
-//         }
-//         if((pipedpid = fork()) == -1)
-//         {
-//             printf("Bad Fork\n");
-//             exit(1);
-//         }
-//         else if(pipedpid == 0)
-//         {
-//             exec_type2(piped_commands_split[i],i);
-//             return 1;
-//         }
-//         else
-//         {
-//             wait(NULL);
-//             close(pipes[i-1][0]);close(pipes[i-1][1]);
-//         }
-        
-//     }
-
-//     if((pipedpid = fork()) == -1)
-//     {
-//         printf("Bad Fork\n");
-//         exit(1);
-//     }
-//     else if(pipedpid == 0)
-//     {
-//         exec_type3(piped_commands_split[demarker-1],demarker-2);
-//         return 1;
-//     }
-//     for(int i=0;i<demarker-1;++i)
-//     {
-//         close(pipes[i][0]);
-//         close(pipes[i][1]);
-//     }
-//     wait(NULL);
-//     return 1;
-// }
-
-// static void pipeline(char ***cmd)
-// {
-// 	int fd[2];
-// 	pid_t pid;
-// 	int fdd = 0;				/* Backup */
-
-// 	while (*cmd != NULL) {
-// 		pipe(fd);				/* Sharing bidiflow */ 
-//         if ((pid = fork()) == -1) {
-//             perror("fork");
-//             exit(1);
-//         }
-//         else if (pid == 0) {
-//             dup2(fdd, 0);
-//             if (*(cmd + 1) != NULL) {
-//                 dup2(fd[1], 1);
-//             }
-//             close(fd[0]);  
-//             // for (int i = 0 ; i < number_builtin() ; ++i) {
-//             //     if(strcmp((*cmd)[0], str_builtin[i]) == 0) {
-//             //         (*func_builtin[i])(*cmd, HOME_DIR);
-//             //         return;
-//             //     }
-//             // }
-//             if(strcmp("echo",(*cmd)[0])==0)
-//             {
-//                 // b_echo((*cmd),HOME_DIR);
-//                 printf("hello kadjfhgh lakjfhk");
-//                 return;
-//             }
-//             else
-//             {
-//                 execvp((*cmd)[0], *cmd);
-//                 exit(1);
-//             }
-
-//         }
-//         else {
-//             wait(NULL); 		/* Collect childs */
-//             close(fd[1]);
-//             fdd = fd[0];
-//             cmd++;
-//         }
-// 	}
-// }
-
-static void pipeline(char ***cmd)
+void pipedExecute(char ***command_list, int demarker)
 {
-	int fd[2];
-	pid_t pid;
-	int fdd = 0;				/* Backup */
-
-	while (*cmd != NULL) {
-		pipe(fd);	
-			/* Sharing bidiflow */ 
-        if ((pid = fork()) == -1) {
-            perror("fork");
-            exit(1);
+    int piper[2];
+    pid_t pid;
+    int previous_read_fd = 0;
+    for(int i=0; i< demarker;)
+    {
+        if(pipe(piper) == -1)
+        {
+            perror("Error In Creating a Pipe");
+            return;
         }
-        else if (pid == 0) {
-            dup2(fdd, 0);
-            if (*(cmd + 1) != NULL) {
-                dup2(fd[1], 1);
+		if ((pid = fork()) == -1) {
+			perror("fork");
+			return;
+		}
+        if(pid == 0)
+        {
+            dup2(previous_read_fd, STDIN_FILENO);
+            if(i != demarker-1)
+            {
+                dup2(piper[WRITE_END], STDOUT_FILENO);
             }
-            close(fd[0]);  
-            execvp((*cmd)[0], *cmd);
-            exit(1);
-
+            close(piper[READ_END]);
+            // close(piper[WRITE_END]);
+            for(int j=0 ; j < number_builtin() ; ++j) {
+                if(strcmp(command_list[i][0], str_builtin[j])==0) {
+                    (*func_builtin[j])(command_list[i], HOME_DIR);
+                    exit(0);
+                } 
+            }
+            execvp(command_list[i][0], command_list[i]);
+            perror("Error In Executing the Child Program");
         }
-        else {
-            wait(NULL); 		/* Collect childs */
-            close(fd[1]);
-            fdd = fd[0];
-            cmd++;
+        else 
+        {
+            wait(NULL);
+            close(piper[WRITE_END]);
+            // close(piper[READ_END]);
+            previous_read_fd = piper[READ_END];
+            ++i;
         }
-	}
+    }
 }
 
 
