@@ -297,6 +297,14 @@ int launchProgram(char **args) {
     CHILD_PID = pid;
     strcpy(CHILD_PROC_NAME, args[0]);
     if(pid == 0) {
+        if(background_check >= 0)
+        {
+            if(setpgid(0,0) != 0)
+            {
+                perror("Shell");
+            }
+        }
+        
         for(int i=0 ; i < number_builtin_bg() ; ++i) {
             if(strcmp(args[0], str_builtin_bg[i])==0) {
                 (*func_builtin_bg[i])(args, HOME_DIR);
@@ -318,7 +326,7 @@ int launchProgram(char **args) {
             // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
         }
         else {
-            printf("%d\n",pid);
+            printf("[%d] %d\n",BG_PROC_COUNT+1,pid);
             PROC_ARR[BG_PROC_COUNT].proc_id = pid;
             strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, args[0]);
             PROC_ARR[BG_PROC_COUNT].state = 1;
