@@ -494,6 +494,14 @@ void pipedExecute(char *command, char ***command_list, int demarker)
     }
     else if (ppid ==0)
     {
+        if(background == 1)
+        {
+            if(setpgid(0,0) != 0)
+            {
+                perror("Shell");
+            }
+        }
+
         int piper[2];
         pid_t pid;
         int previous_read_fd = 0;
