@@ -197,6 +197,7 @@ void shellLoop(void) {
             else
             {
                 int restore_stdin, restore_stdout;
+                int error_flag = 0;
                 restore_stdin = dup(0);
                 restore_stdout = dup(1);
                 char **piped_commands = parseInputPipe(copy);
@@ -210,8 +211,18 @@ void shellLoop(void) {
                 {
                     piped_commands_split[demarker] = parseInput(piped_commands[i]);
                     piped_commands_split[demarker] = redirectInputOutput(piped_commands_split[demarker]);
+                    // if(strcmp(piped_commands_split[demarker][0],"-9999")==0)
+                    // {
+                    //     error_flag = 1;
+                    // }
                     demarker++;
-                }	            
+                }	  
+                // if(error_flag==1)
+                // {
+                //     perror("Shell:Error In Input Output File");
+                //     free(piped_commands_split);
+                //     continue;
+                // }          
                 pipedExecute(piped_commands_split, demarker);
                 dup2(restore_stdin, 0);
                 close(restore_stdin);

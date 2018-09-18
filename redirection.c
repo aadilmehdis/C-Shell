@@ -1,6 +1,6 @@
 #include "redirection.h"
 
-void changeInputSource(char *filename)
+int changeInputSource(char *filename)
 {
     int in;
     // printf("checkpoint 3\n");
@@ -8,39 +8,42 @@ void changeInputSource(char *filename)
     // printf("checkpoint 4\n");
     if(in == -1)
     {
-        printf("%s\n", filename);
-        perror("Shell");
-        return;
+        // printf("%s\n", filename);
+        perror("Shell (Press Ctrl+C to continue)");
+        return -1;
     }
     dup2(in, 0);
     // printf("checkpoint 5\n");
     close(in);
+    return 1;
 }
 
-void changeOutputSource(char *filename)
+int changeOutputSource(char *filename)
 {
     int out;
     out = creat(filename, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
     if(out == -1)
     {
-        perror("Shell");
-        return;
+        perror("Shell (Press Ctrl+C to continue)");
+        return -1;
     }
     dup2(out, 1);
     close(out);
+    return 1;
 }
 
-void changeOutputSourceAppend(char *filename)
+int changeOutputSourceAppend(char *filename)
 {
     int out;
     out = open(filename, O_WRONLY | O_APPEND);
     if(out == -1)
     {
-        perror("Shell");
-        return;
+        perror("Shell (Press Ctrl+C to continue)");
+        return -1;
     }
     dup2(out, 1);
     close(out);
+    return 1;
 }
 
 void restoreInput(int saved_stdin)
@@ -71,13 +74,26 @@ char **redirectInputOutput(char **args)
         {
             if(args[i+1] == NULL)
             {
+                errno = 2;
                 perror("Shell");
-                exit(1);
+                // return NULL;
+                // char **return_error = malloc(sizeof(char *) * 2);
+                // strcpy(return_error[0],"-9999");
+                // return_error[1] = NULL;
+                // return return_error;
             }
             else
             {
                 // printf("checkpoint 1\n");
                 changeInputSource(args[i+1]);
+                // {
+                //     perror("Shell");
+                //     // return NULL;
+                //     // char **return_error = malloc(sizeof(char *) * 2);
+                //     // strcpy(return_error[0],"-9999");
+                //     // return_error[1] = NULL;
+                //     // return return_error;
+                // }
                 // printf("checkpoint 2\n");
             }
             encountered_redirection = 1;
@@ -86,12 +102,24 @@ char **redirectInputOutput(char **args)
         {
             if(args[i+1] == NULL)
             {
+                errno = 2;
                 perror("Shell");
-                exit(1);
+                // return NULL;
+                // char **return_error = malloc(sizeof(char *) * 2);
+                // strcpy(return_error[0],"-9999");
+                // return_error[1] = NULL;
+                // return return_error;
             }
             else
             {
                 changeOutputSource(args[i+1]);
+                    // perror("Shell");
+                    // return NULL;
+                    // char **return_error = malloc(sizeof(char *) * 2);
+                    // strcpy(return_error[0],"-9999");
+                    // return_error[1] = NULL;
+                    // return return_error;
+                
             }   
             encountered_redirection = 1;
         }
@@ -99,12 +127,25 @@ char **redirectInputOutput(char **args)
         {
             if(args[i+1] == NULL)
             {
+                errno = 2;
                 perror("Shell");
-                exit(1);
+                // return NULL;
+                // char **return_error = malloc(sizeof(char *) * 2);
+                // strcpy(return_error[0],"-9999");
+                // return_error[1] = NULL;
+                // return return_error;
             }
             else
             {
                 changeOutputSourceAppend(args[i+1]);
+                // {
+                //     perror("Shell");
+                //     // return NULL;
+                //     // char **return_error = malloc(sizeof(char *) * 2);
+                //     // strcpy(return_error[0],"-9999");
+                //     // return_error[1] = NULL;
+                //     // return return_error;
+                // }
             }
             encountered_redirection = 1;
         }
