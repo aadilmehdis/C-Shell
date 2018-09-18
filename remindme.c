@@ -24,5 +24,5 @@ int b_remindme(char **args, char *home_directory)
         ++i;
     }
     printf("\n");
-    return 1;
+    exit(0);
 }

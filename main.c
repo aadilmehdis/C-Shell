@@ -38,7 +38,7 @@ void checkBackgroundCompleted(void);
 void exec_type1(char **args, int i);
 void exec_type2(char **args, int i);
 void exec_type3(char **args, int i);
-void pipedExecute(char ***command_list, int demarker);
+void pipedExecute(char *command, char ***command_list, int demarker);
 void handleCtrlC(int sig_num);
 void handleCtrlZ(int sig_num);
 
@@ -156,6 +156,7 @@ void shellLoop(void) {
     char *input_line;
     char **args;
     char copy[5000];
+    char command_to_print[5000];
     int return_status = 1;
 
     
@@ -164,6 +165,7 @@ void shellLoop(void) {
         checkBackgroundCompleted();
         input_line = readInput();
         strcpy(copy, input_line);
+        strcpy(command_to_print,input_line);
         CHILD_PID = -1;
         args = parseInputSemiColon(input_line);
         int count_commands = 0;
@@ -223,7 +225,7 @@ void shellLoop(void) {
                 //     free(piped_commands_split);
                 //     continue;
                 // }          
-                pipedExecute(piped_commands_split, demarker);
+                pipedExecute(command_to_print, piped_commands_split, demarker);
                 dup2(restore_stdin, 0);
                 close(restore_stdin);
                 dup2(restore_stdout, 1);
@@ -297,7 +299,8 @@ int launchProgram(char **args) {
     if(pid == 0) {
         for(int i=0 ; i < number_builtin_bg() ; ++i) {
             if(strcmp(args[0], str_builtin_bg[i])==0) {
-                return (*func_builtin_bg[i])(args, HOME_DIR);
+                (*func_builtin_bg[i])(args, HOME_DIR);
+                return 1;
             } 
         }
         if(execvp(args[0], args) == -1) {
@@ -464,8 +467,9 @@ char **parseInputPipe(char *input_line) {
     return token_list;
 }
 
-void pipedExecute(char ***command_list, int demarker)
+void pipedExecute(char *command, char ***command_list, int demarker)
 {
+    printf("command : %s\n",command);
     int background = 0;
     int count = 0, innercount = 0;
     while(command_list[count] != NULL) count ++; count--;
@@ -475,48 +479,80 @@ void pipedExecute(char ***command_list, int demarker)
         background = 1;
         command_list[count][innercount] = NULL;
     }
-    int piper[2];
-    pid_t pid;
-    int previous_read_fd = 0;
-    for(int i=0; i< demarker;)
+    pid_t ppid;
+    if((ppid = fork())==-1)
     {
-        if(pipe(piper) == -1)
+        perror("Error In Forking");
+    }
+    else if (ppid ==0)
+    {
+        int piper[2];
+        pid_t pid;
+        int previous_read_fd = 0;
+        for(int i=0; i< demarker;)
         {
-            perror("Error In Creating a Pipe");
+            if(pipe(piper) == -1)
+            {
+                perror("Error In Creating a Pipe");
+                return;
+            }
+            if ((pid = fork()) == -1) {
+                perror("fork");
+                return;
+            }
+            if(pid == 0)
+            {
+                dup2(previous_read_fd, STDIN_FILENO);
+                if(i != demarker-1)
+                {
+                    dup2(piper[WRITE_END], STDOUT_FILENO);
+                }
+                close(piper[READ_END]);
+                // close(piper[WRITE_END]);
+                for(int j=0 ; j < number_builtin() ; ++j) {
+                    if(strcmp(command_list[i][0], str_builtin[j])==0) {
+                        if(strcmp(command_list[i][0], "clock")==0)
+                        {
+                            errno=1;
+                            perror("Shell");
+                            exit(0);
+                        }
+                        (*func_builtin[j])(command_list[i], HOME_DIR);
+                        exit(0);
+                    } 
+                }
+                execvp(command_list[i][0], command_list[i]);
+                perror("Error In Executing the Child Program");
+            }
+            else 
+            {
+                if(background==0)
+                {
+                    wait(NULL);
+                }
+                close(piper[WRITE_END]);
+                // close(piper[READ_END]);
+                previous_read_fd = piper[READ_END];
+                ++i;
+            }
+        }
+        exit(0);
+    }
+    else
+    {
+        if(background==1)
+        {
+            printf("%d\n",ppid);
+            PROC_ARR[BG_PROC_COUNT].proc_id = ppid;
+            strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, command);
+            PROC_ARR[BG_PROC_COUNT].state = 1;
+            ++BG_PROC_COUNT;
             return;
         }
-		if ((pid = fork()) == -1) {
-			perror("fork");
-			return;
-		}
-        if(pid == 0)
+        else
         {
-            dup2(previous_read_fd, STDIN_FILENO);
-            if(i != demarker-1)
-            {
-                dup2(piper[WRITE_END], STDOUT_FILENO);
-            }
-            close(piper[READ_END]);
-            // close(piper[WRITE_END]);
-            for(int j=0 ; j < number_builtin() ; ++j) {
-                if(strcmp(command_list[i][0], str_builtin[j])==0) {
-                    (*func_builtin[j])(command_list[i], HOME_DIR);
-                    exit(0);
-                } 
-            }
-            execvp(command_list[i][0], command_list[i]);
-            perror("Error In Executing the Child Program");
-        }
-        else 
-        {
-            if(background==0)
-            {
-                wait(NULL);
-            }
-            close(piper[WRITE_END]);
-            // close(piper[READ_END]);
-            previous_read_fd = piper[READ_END];
-            ++i;
+            waitpid(ppid, NULL, WUNTRACED);
+            return;
         }
     }
 }
