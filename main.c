@@ -202,6 +202,10 @@ void shellLoop(void) {
                 char **piped_commands = parseInputPipe(copy);
                 int demarker = 0;
                 char ***piped_commands_split = malloc(sizeof(char **) * 1000);
+                for(int k=0 ; k<1000 ; ++k)
+                {
+                    piped_commands_split[k] = NULL;
+                }
                 for(int i=0 ;piped_commands[i]!=NULL;++i)
                 {
                     piped_commands_split[demarker] = parseInput(piped_commands[i]);
@@ -451,6 +455,15 @@ char **parseInputPipe(char *input_line) {
 
 void pipedExecute(char ***command_list, int demarker)
 {
+    int background = 0;
+    int count = 0, innercount = 0;
+    while(command_list[count] != NULL) count ++; count--;
+    while(command_list[count][innercount] != NULL) innercount++; innercount--;
+    if(strcmp(command_list[count][innercount],"&")==0)
+    {
+        background = 1;
+        command_list[count][innercount] = NULL;
+    }
     int piper[2];
     pid_t pid;
     int previous_read_fd = 0;
@@ -485,7 +498,10 @@ void pipedExecute(char ***command_list, int demarker)
         }
         else 
         {
-            wait(NULL);
+            if(background==0)
+            {
+                wait(NULL);
+            }
             close(piper[WRITE_END]);
             // close(piper[READ_END]);
             previous_read_fd = piper[READ_END];

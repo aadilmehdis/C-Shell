@@ -10,7 +10,7 @@ void changeInputSource(char *filename)
     {
         printf("%s\n", filename);
         perror("Shell");
-        exit(1);
+        return;
     }
     dup2(in, 0);
     // printf("checkpoint 5\n");
@@ -24,7 +24,7 @@ void changeOutputSource(char *filename)
     if(out == -1)
     {
         perror("Shell");
-        exit(1);
+        return;
     }
     dup2(out, 1);
     close(out);
@@ -37,7 +37,7 @@ void changeOutputSourceAppend(char *filename)
     if(out == -1)
     {
         perror("Shell");
-        exit(1);
+        return;
     }
     dup2(out, 1);
     close(out);
