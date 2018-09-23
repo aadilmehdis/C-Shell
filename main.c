@@ -326,6 +326,7 @@ int launchProgram(char **args) {
             // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
         }
         else {
+            CHILD_PID = -1;
             printf("[%d] %d\n",BG_PROC_COUNT+1,pid);
             PROC_ARR[BG_PROC_COUNT].proc_id = pid;
             strcpy(PROC_ARR[BG_PROC_COUNT].proc_name, args[0]);
