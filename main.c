@@ -40,6 +40,7 @@ void exec_type3(char **args, int i);
 void pipedExecute(char *command, char ***command_list, int demarker);
 void handleCtrlC(int sig_num);
 void handleCtrlZ(int sig_num);
+void handleExit(int sig_num);
 
 typedef struct
 {
@@ -105,6 +106,7 @@ int (*func_builtin_bg[])(char **, char *) = {
 int main(int argc, char **argv)
 {
     getcwd(HOME_DIR, 1024);
+    signal(SIGCHLD, handleExit);
     signal(SIGTSTP, handleCtrlZ);
     signal(SIGINT, handleCtrlC);
     GLOBAL_PID = getpid();
@@ -127,6 +129,7 @@ void handleCtrlC(int sig_num)
 }
 void handleCtrlZ(int sig_num)
 {
+    // CHILD_PID = -1;
     if (getpid() != GLOBAL_PID)
     {
         return;
@@ -143,6 +146,34 @@ void handleCtrlZ(int sig_num)
     signal(SIGTSTP, handleCtrlZ);
 }
 
+void handleExit(int sig_num)
+{
+    for (int i = 0; i < BG_PROC_COUNT; ++i)
+    {
+        int retstat;
+        if (waitpid(PROC_ARR[i].proc_id, &retstat, WNOHANG) > 0)
+        {
+            printf("%s with process id %d exited normally", PROC_ARR[i].proc_name, PROC_ARR[i].proc_id);
+            PROC_ARR[i].proc_id = -9999;
+        }
+    }
+    process transfer[1000];
+    int transfer_count = 0;
+    for (int i = 0; i < BG_PROC_COUNT; ++i)
+    {
+        if (PROC_ARR[i].proc_id != -9999)
+        {
+            transfer[transfer_count] = PROC_ARR[i];
+            ++transfer_count;
+        }
+    }
+    BG_PROC_COUNT = transfer_count;
+    for (int i = 0; i < BG_PROC_COUNT; ++i)
+    {
+        PROC_ARR[i] = transfer[i];
+    }
+}
+
 void shellLoop(void)
 {
     char *input_line;
@@ -154,7 +185,7 @@ void shellLoop(void)
     do
     {
         printPrompt();
-        checkBackgroundCompleted();
+        // checkBackgroundCompleted();
         input_line = readInput();
         strcpy(copy, input_line);
         strcpy(command_to_print, input_line);
